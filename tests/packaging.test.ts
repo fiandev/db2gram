@@ -21,7 +21,7 @@ const KEY = randomBytes(32);
 let dir: string;
 
 beforeAll(async () => {
-  dir = await mkdtemp(join(tmpdir(), "tgdb-packaging-"));
+  dir = await mkdtemp(join(tmpdir(), "db2gram-packaging-"));
 });
 afterAll(async () => {
   await rm(dir, { recursive: true, force: true });

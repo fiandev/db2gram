@@ -7,13 +7,13 @@ import { CryptoError } from "./errors.js";
 
 /**
  * Envelope format (PRD §4.1):
- *   tgdb1.<iv_b64url>.<ciphertext_b64url>.<tag_b64url>
+ *   db2gram1.<iv_b64url>.<ciphertext_b64url>.<tag_b64url>
  *
  * AES-256-GCM, 12-byte IV, 16-byte auth tag, key = 32 bytes from base64 SECRET_KEY.
  * The same envelope is used for config.yaml, backup archives and database URLs.
  */
 
-export const ENVELOPE_PREFIX = "tgdb1";
+export const ENVELOPE_PREFIX = "db2gram1";
 export const ALGORITHM = "aes-256-gcm";
 export const KEY_BYTES = 32;
 export const IV_BYTES = 12;
@@ -23,7 +23,7 @@ export const TAG_BYTES = 16;
 const IV_B64URL_LEN = Buffer.alloc(IV_BYTES).toString("base64url").length; // 16
 /** Auth tag encoded as unpadded base64url is always this long. */
 const TAG_B64URL_LEN = Buffer.alloc(TAG_BYTES).toString("base64url").length; // 22
-/** `tgdb1.<iv>.` prefix length. */
+/** `db2gram1.<iv>.` prefix length. */
 const HEADER_LEN = ENVELOPE_PREFIX.length + 1 + IV_B64URL_LEN + 1; // 24
 /** `.<tag>` suffix length. */
 const SUFFIX_LEN = 1 + TAG_B64URL_LEN; // 23
@@ -105,7 +105,7 @@ function parseEnvelope(envelope: string): EnvelopeParts {
   const second = envelope.indexOf(".", first + 1);
   const last = envelope.lastIndexOf(".");
   if (first === -1 || second === -1 || last <= second) {
-    throw new CryptoError("malformed envelope: expected tgdb1.<iv>.<ct>.<tag>");
+    throw new CryptoError("malformed envelope: expected db2gram1.<iv>.<ct>.<tag>");
   }
   if (envelope.slice(0, first) !== ENVELOPE_PREFIX) {
     throw new CryptoError(`unsupported envelope version (expected ${ENVELOPE_PREFIX})`);

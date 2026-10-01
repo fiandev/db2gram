@@ -14,7 +14,7 @@ let dir: string;
 beforeAll(async () => {
   const baseUrl = await mock.start();
   client = new TelegramClient({ token: mock.token, chatId: "42", apiBase: baseUrl, maxRetries: 3 });
-  dir = await mkdtemp(join(tmpdir(), "tgdb-telegram-"));
+  dir = await mkdtemp(join(tmpdir(), "db2gram-telegram-"));
 });
 afterAll(async () => {
   await mock.stop();

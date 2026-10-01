@@ -12,7 +12,7 @@ import { DialectError } from "../src/errors.js";
 
 let dir: string;
 beforeAll(async () => {
-  dir = await mkdtemp(join(tmpdir(), "tgdb-dialects-"));
+  dir = await mkdtemp(join(tmpdir(), "db2gram-dialects-"));
 });
 afterAll(async () => {
   await rm(dir, { recursive: true, force: true });

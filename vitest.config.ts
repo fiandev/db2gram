@@ -6,7 +6,7 @@ import type { Plugin } from "vite";
  * `./foo.ts`. Vite doesn't resolve that by default, so map it back for tests.
  */
 const tsResolver: Plugin = {
-  name: "tgdb-ts-resolver",
+  name: "db2gram-ts-resolver",
   enforce: "pre",
   async resolveId(source, importer, options) {
     if (importer && source.startsWith(".") && source.endsWith(".js")) {

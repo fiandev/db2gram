@@ -53,7 +53,7 @@ export function serializeConfig(config: Config): string {
   return stringifyYaml(config, { lineWidth: 0 });
 }
 
-/** Load config from disk, transparently decrypting a tgdb1 envelope if present. */
+/** Load config from disk, transparently decrypting a db2gram1 envelope if present. */
 export async function loadConfigFile(path: string, key: Buffer): Promise<Config> {
   let content: string;
   try {

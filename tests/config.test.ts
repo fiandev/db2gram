@@ -24,7 +24,7 @@ const YAML = `databases:
 
 let dir: string;
 beforeAll(async () => {
-  dir = await mkdtemp(join(tmpdir(), "tgdb-config-"));
+  dir = await mkdtemp(join(tmpdir(), "db2gram-config-"));
 });
 afterAll(async () => {
   await rm(dir, { recursive: true, force: true });

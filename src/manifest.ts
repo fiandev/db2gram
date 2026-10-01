@@ -4,7 +4,7 @@ import { decryptString, encryptString } from "./crypto.js";
 import { ManifestError } from "./errors.js";
 
 export const MANIFEST_VERSION = 1;
-export const MANIFEST_TOOL = "tgdb-backup";
+export const MANIFEST_TOOL = "db2gram";
 
 export const ManifestChunkSchema = z.object({
   part: z.number().int().positive(),

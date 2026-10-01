@@ -1,5 +1,5 @@
 [Unit]
-Description=Run tgdb-backup daily at 02:00
+Description=Run db2gram daily at 02:00
 
 [Timer]
 OnCalendar=*-*-* 02:00:00

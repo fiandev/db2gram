@@ -5,7 +5,7 @@ services:
     image: postgres:18
     environment:
       POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: tgdb_test
+      POSTGRES_DB: db2gram_test
     ports:
       - "5433:5432"
     healthcheck:
@@ -18,9 +18,9 @@ services:
     image: mariadb:11
     environment:
       MARIADB_ROOT_PASSWORD: root
-      MARIADB_DATABASE: tgdb_test
-      MARIADB_USER: tgdb
-      MARIADB_PASSWORD: tgdb
+      MARIADB_DATABASE: db2gram_test
+      MARIADB_USER: db2gram
+      MARIADB_PASSWORD: db2gram
     ports:
       - "3307:3306"
     healthcheck:

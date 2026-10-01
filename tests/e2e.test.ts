@@ -47,7 +47,7 @@ const ENV_KEYS = [
   "TELEGRAM_BOT_TOKEN",
   "TELEGRAM_CHAT_ID",
   "TELEGRAM_API_BASE",
-  "TGDB_SKIP_STATE",
+  "DB2GRAM_SKIP_STATE",
   "TMP_DIR",
   "CHUNK_SIZE_MB",
   "CONFIG_PATH",
@@ -57,7 +57,7 @@ const ENV_KEYS = [
 beforeAll(async () => {
   if (!hasDialect("fakedb")) registerDialect(new FakeDialect());
   const baseUrl = await mock.start();
-  dir = await mkdtemp(join(tmpdir(), "tgdb-e2e-"));
+  dir = await mkdtemp(join(tmpdir(), "db2gram-e2e-"));
 
   configPath = join(dir, "config.yaml");
   manifestPath = join(dir, "manifest.json");
@@ -78,7 +78,7 @@ beforeAll(async () => {
   process.env.TELEGRAM_BOT_TOKEN = mock.token;
   process.env.TELEGRAM_CHAT_ID = "99";
   process.env.TELEGRAM_API_BASE = baseUrl;
-  process.env.TGDB_SKIP_STATE = "1";
+  process.env.DB2GRAM_SKIP_STATE = "1";
   process.env.TMP_DIR = join(dir, "tmp");
   process.env.CHUNK_SIZE_MB = "1";
   process.env.CONFIG_PATH = configPath;

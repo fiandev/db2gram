@@ -1,5 +1,5 @@
-# Example tgdb-backup config. Encrypt this file before use:
-#   tgdb encrypt-config --in config.example.yaml --out config.yaml.enc
+# Example db2gram config. Encrypt this file before use:
+#   db2gram encrypt-config --in config.example.yaml --out config.yaml.enc
 # Then delete the plaintext. Only config.yaml.enc should be deployed.
 databases:
   - name: "main-app"

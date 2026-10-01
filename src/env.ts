@@ -22,7 +22,7 @@ export function intEnv(name: string, fallback: number): number {
 }
 
 export const DEFAULT_CHUNK_SIZE_MB = 48;
-export const DEFAULT_TMP_DIR = "/tmp/tgdb";
+export const DEFAULT_TMP_DIR = "/tmp/db2gram";
 
 export function chunkSizeBytes(): number {
   return intEnv("CHUNK_SIZE_MB", DEFAULT_CHUNK_SIZE_MB) * 1024 * 1024;

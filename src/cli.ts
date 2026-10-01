@@ -5,7 +5,7 @@ import { runBackup, summarizeBackup } from "./commands/backup.js";
 import { runRestore } from "./commands/restore.js";
 import { decryptConfigFile, encryptConfigFile, resolveConfigPath } from "./config.js";
 import { loadSecretKey } from "./crypto.js";
-import { TgdbError } from "./errors.js";
+import { Db2gramError } from "./errors.js";
 import { createLogger } from "./logger.js";
 
 const VERSION = "1.0.0";
@@ -19,7 +19,7 @@ function main(): void {
 
   program
     .command("encrypt-config")
-    .description("Encrypt a plaintext config.yaml into a tgdb1 envelope.")
+    .description("Encrypt a plaintext config.yaml into a db2gram1 envelope.")
     .option("--in <path>", "input config path", "./config.yaml")
     .option("--out <path>", "output encrypted path", "./config.yaml.enc")
     .action(async (opts: { in: string; out: string }) => {
@@ -31,7 +31,7 @@ function main(): void {
 
   program
     .command("decrypt-config")
-    .description("Decrypt a tgdb1 config envelope back to plaintext YAML.")
+    .description("Decrypt a db2gram1 config envelope back to plaintext YAML.")
     .option("--in <path>", "input encrypted path", "./config.yaml.enc")
     .option("--out <path>", "output plaintext path", "./config.yaml")
     .action(async (opts: { in: string; out: string }) => {
@@ -101,7 +101,7 @@ function main(): void {
 
 function handleFatal(err: unknown): void {
   const logger = createLogger();
-  if (err instanceof TgdbError) {
+  if (err instanceof Db2gramError) {
     logger.error(err.message, { code: err.code, error: err.cause instanceof Error ? err.cause : undefined });
   } else if (err instanceof Error) {
     logger.error(err.message, { error: err });

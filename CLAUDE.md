@@ -1,4 +1,4 @@
-# tgdb-backup — agent notes
+# db2gram — agent notes
 
 CLI tool: dump → zip → AES-256-GCM encrypt → split → upload to Telegram; restore
 from a manifest. See `README.md` and the PRD for the full spec.
@@ -16,7 +16,7 @@ from a manifest. See `README.md` and the PRD for the full spec.
 
 - Source imports use explicit `.js` extensions (NodeNext). Do not import `.ts`.
 - Types live next to their implementation; use `import type` / inline `type`.
-- All thrown errors extend `TgdbError` (see `src/errors.ts`) with a stable `code`.
+- All thrown errors extend `Db2gramError` (see `src/errors.ts`) with a stable `code`.
 - Never log or persist credentials. Use `redactUrl()`; pass DB passwords via env
   (`PGPASSWORD`, `MYSQL_PWD`), never argv.
 - Temp files are mode `600` and cleaned in `finally`.

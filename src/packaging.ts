@@ -62,12 +62,12 @@ export async function unzipFile(zipPath: string, outDir: string): Promise<string
   return join(outDir, sql);
 }
 
-/** Encrypt a zip archive into a tgdb1 envelope file. */
+/** Encrypt a zip archive into a db2gram1 envelope file. */
 export async function encryptArchive(zipPath: string, encPath: string, key: Buffer): Promise<void> {
   await encryptFile(zipPath, encPath, key);
 }
 
-/** Decrypt a tgdb1 envelope file back into a zip archive. */
+/** Decrypt a db2gram1 envelope file back into a zip archive. */
 export async function decryptArchive(encPath: string, zipPath: string, key: Buffer): Promise<void> {
   await decryptFile(encPath, zipPath, key);
 }

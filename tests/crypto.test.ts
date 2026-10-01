@@ -20,7 +20,7 @@ const KEY = randomBytes(32);
 let dir: string;
 
 beforeAll(async () => {
-  dir = await mkdtemp(join(tmpdir(), "tgdb-crypto-"));
+  dir = await mkdtemp(join(tmpdir(), "db2gram-crypto-"));
 });
 afterAll(async () => {
   await rm(dir, { recursive: true, force: true });
@@ -34,11 +34,11 @@ describe("crypto: AES-256-GCM envelope", () => {
     expect(decryptString(envelope, KEY)).toBe(plaintext);
   });
 
-  it("emits tgdb1.<iv>.<ct>.<tag> with fixed iv/tag lengths", () => {
+  it("emits db2gram1.<iv>.<ct>.<tag> with fixed iv/tag lengths", () => {
     const envelope = encryptString("hello", KEY);
     const parts = envelope.split(".");
     expect(parts).toHaveLength(4);
-    expect(parts[0]).toBe("tgdb1");
+    expect(parts[0]).toBe("db2gram1");
     expect(Buffer.from(parts[1]!, "base64url")).toHaveLength(12);
     expect(Buffer.from(parts[3]!, "base64url")).toHaveLength(16);
   });
@@ -77,8 +77,8 @@ describe("crypto: AES-256-GCM envelope", () => {
     await writeFile(input, data);
 
     await encryptFile(input, enc, KEY);
-    const head = (await readFile(enc, "utf8")).slice(0, 6);
-    expect(head).toBe("tgdb1.");
+    const head = (await readFile(enc, "utf8")).slice(0, 9);
+    expect(head).toBe("db2gram1.");
 
     await decryptFile(enc, out, KEY);
     expect(await sha256File(out)).toBe(sha256Buffer(data));

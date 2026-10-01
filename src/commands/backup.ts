@@ -67,12 +67,12 @@ export async function runBackup(options: BackupOptions = {}): Promise<BackupResu
         chatId: requireEnv("TELEGRAM_CHAT_ID"),
         logger,
       });
-  // ROOT_DATABASE_URL is required by default. TGDB_SKIP_STATE=1 disables audit
+  // ROOT_DATABASE_URL is required by default. DB2GRAM_SKIP_STATE=1 disables audit
   // logging (useful for tests and one-off runs); the manifest is unaffected.
-  const stateDisabled = process.env.TGDB_SKIP_STATE === "1";
+  const stateDisabled = process.env.DB2GRAM_SKIP_STATE === "1";
   const rootUrl = dryRun || stateDisabled ? undefined : requireEnv("ROOT_DATABASE_URL");
   if (stateDisabled && !dryRun) {
-    logger.warn("state DB disabled via TGDB_SKIP_STATE=1; run history will not be recorded");
+    logger.warn("state DB disabled via DB2GRAM_SKIP_STATE=1; run history will not be recorded");
   }
 
   const stamp = fileStamp();
@@ -188,7 +188,7 @@ export async function runBackup(options: BackupOptions = {}): Promise<BackupResu
       await writeFile(manifestPath, serializeManifest(manifest, format), { mode: 0o600 });
       logger.info("manifest written", { path: manifestPath });
 
-      const sent = await telegram!.sendDocument(manifestPath, "tgdb-backup manifest");
+      const sent = await telegram!.sendDocument(manifestPath, "db2gram manifest");
       manifestFileId = sent.fileId;
       logger.info("manifest uploaded", { file_id: manifestFileId });
     } else if (dryRun) {

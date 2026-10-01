@@ -16,7 +16,7 @@ single command from the manifest.
 - Scheduled daily backup (systemd timer / cron) for many databases at once.
 - **Pluggable** dialects: v1 supports **PostgreSQL** and **MariaDB/MySQL**.
 - Configuration & credentials encrypted at rest (`config.yaml.enc`).
-- Archive encryption with AES-256-GCM, envelope format `tgdb1.<iv>.<ct>.<tag>`.
+- Archive encryption with AES-256-GCM, envelope format `db2gram1.<iv>.<ct>.<tag>`.
 - Automatic chunking + SHA-256 verification at every transition.
 - Single-command restore with interactive confirmation and production-host protection.
 - Run & chunk history stored in a *control database* (`backup_runs`, `backup_chunks`).
@@ -59,15 +59,15 @@ npm link               # provides `db2gram` on PATH
 | Var | Required | Description |
 |---|---|---|
 | `SECRET_KEY` | Yes | 32-byte base64 key (`openssl rand -base64 32`). Used for config, archives, and manifest URLs. |
-| `ROOT_DATABASE_URL` | Yes* | Control DB for `backup_runs`/`backup_chunks`. *Not needed for `restore` and `--dry-run`; audit logging can be disabled with `TGDB_SKIP_STATE=1`. |
+| `ROOT_DATABASE_URL` | Yes* | Control DB for `backup_runs`/`backup_chunks`. *Not needed for `restore` and `--dry-run`; audit logging can be disabled with `DB2GRAM_SKIP_STATE=1`. |
 | `TELEGRAM_BOT_TOKEN` | Yes* | Bot token. *Not needed for `--dry-run`. |
 | `TELEGRAM_CHAT_ID` | Yes* | Destination chat/channel. *Not needed for `--dry-run`. |
 | `CONFIG_PATH` | No | Path to the encrypted config (default `./config.yaml.enc`). |
 | `CHUNK_SIZE_MB` | No | Chunk size (default `48`, Bot API max is 50). |
-| `TMP_DIR` | No | Temporary working directory (default `/tmp/tgdb`). |
+| `TMP_DIR` | No | Temporary working directory (default `/tmp/db2gram`). |
 | `LOG_LEVEL` | No | `debug` \| `info` \| `warn` \| `error` \| `silent` (default `info`). |
 | `LOG_FORMAT` | No | `json` for structured logs. |
-| `TGDB_SKIP_STATE` | No | `1` to skip audit logging. |
+| `DB2GRAM_SKIP_STATE` | No | `1` to skip audit logging. |
 | `TELEGRAM_API_BASE` | No | Bot API endpoint override (for tests). |
 
 ## 6. Configuration
@@ -136,8 +136,8 @@ showing the DB name + target host. Hosts that look like production (`prod`,
 
 ## 10. Scheduler
 
-- systemd: install `systemd/tgdb-backup.service` and `systemd/tgdb-backup.timer`
-  (see the comments inside the files). `systemctl enable --now tgdb-backup.timer`.
+- systemd: install `systemd/db2gram.service` and `systemd/db2gram.timer`
+  (see the comments inside the files). `systemctl enable --now db2gram.timer`.
 - cron: see `crontab.example`.
 
 ## 11. Adding a new dialect
@@ -167,7 +167,7 @@ registerDialect(new SqliteDialect());
 ```
 src/
   cli.ts            # commander: backup, restore, encrypt-config, decrypt-config
-  crypto.ts         # AES-256-GCM (string/buffer/stream) + tgdb1 envelope
+  crypto.ts         # AES-256-GCM (string/buffer/stream) + db2gram1 envelope
   config.ts         # zod schema, load/encrypt/decrypt config
   env.ts            # environment reading & validation
   manifest.ts       # build/parse/serialize manifest
@@ -186,13 +186,13 @@ systemd/            # unit & timer
 ```json
 {
   "version": 1,
-  "tool": "tgdb-backup",
+  "tool": "db2gram",
   "created_at": "2026-10-01T02:00:00.000Z",
   "databases": [
     {
       "name": "main-app",
       "dialect": "postgres",
-      "database_url_enc": "tgdb1.<iv>.<ct>.<tag>",
+      "database_url_enc": "db2gram1.<iv>.<ct>.<tag>",
       "dump_sha256": "…",
       "archive_sha256": "…",
       "chunks": [

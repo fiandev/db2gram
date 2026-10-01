@@ -29,9 +29,9 @@ describe("manifest", () => {
   it("builds a manifest with an encrypted database URL", () => {
     const manifest = buildManifest([INPUT], KEY);
     expect(manifest.version).toBe(1);
-    expect(manifest.tool).toBe("tgdb-backup");
+    expect(manifest.tool).toBe("db2gram");
     const db = manifest.databases[0]!;
-    expect(db.database_url_enc.startsWith("tgdb1.")).toBe(true);
+    expect(db.database_url_enc.startsWith("db2gram1.")).toBe(true);
     expect(db.database_url_enc).not.toContain("pass");
     expect(decryptString(db.database_url_enc, KEY)).toBe(INPUT.databaseUrl);
     expect(databaseUrlFromManifest(db, KEY)).toBe(INPUT.databaseUrl);

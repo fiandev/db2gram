@@ -4,7 +4,6 @@
   "description": "Automated multi-database backup to Telegram (dump -> zip -> encrypt -> chunk -> upload).",
   "type": "module",
   "license": "MIT",
-  "private": true,
   "bin": {
     "db2gram": "./dist/cli.js"
   },

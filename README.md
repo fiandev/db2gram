@@ -46,6 +46,20 @@ Install as a global command (optional):
 npm link               # provides `db2gram` on PATH
 ```
 
+Or download the single binary from the GitHub Releases page
+(`db2gram-linux-x64`, `db2gram-darwin-arm64`, …). No runtime needed:
+
+```bash
+chmod +x db2gram-linux-x64
+./db2gram-linux-x64 --help
+```
+
+Build it yourself with Bun:
+
+```bash
+npm run build:bin      # output to dist/bin/db2gram
+```
+
 ## 4. Telegram bot setup
 
 1. Chat `@BotFather` → `/newbot` → save the **token**.

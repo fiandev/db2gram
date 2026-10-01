@@ -9,9 +9,34 @@ single command from the manifest.
 > Telegram cloud storage is **not** end-to-end encrypted, so archives are encrypted
 > before leaving the server. Without `SECRET_KEY`, backup contents cannot be read.
 
+Flow per database: `dump → zip → encrypt → split → upload chunks → manifest`
+
 ---
 
-## 1. Features
+## Contents
+
+1. [Features](#features)
+2. [Prerequisites](#prerequisites)
+3. [Installation](#installation)
+4. [Quick start (10 minutes)](#quick-start-10-minutes)
+5. [Step-by-step setup](#step-by-step-setup)
+6. [Environment variables](#environment-variables)
+7. [Configuration](#configuration-configyamlenc)
+8. [Backup](#backup)
+9. [Restore](#restore)
+10. [Emergency restore](#emergency-restore)
+11. [Scheduler (daily backup)](#scheduler-daily-backup)
+12. [Adding a new dialect](#adding-a-new-dialect)
+13. [Project structure](#project-structure)
+14. [Manifest schema](#manifest-schema)
+15. [Control database schema](#control-database-schema)
+16. [Security](#security)
+17. [Testing](#testing)
+18. [Todo](#todo)
+
+---
+
+## Features
 
 - Scheduled daily backup (systemd timer / cron) for many databases at once.
 - **Pluggable** dialects: v1 supports **PostgreSQL** and **MariaDB/MySQL**.
@@ -19,116 +44,340 @@ single command from the manifest.
 - Archive encryption with AES-256-GCM, envelope format `db2gram1.<iv>.<ct>.<tag>`.
 - Automatic chunking + SHA-256 verification at every transition.
 - Single-command restore with interactive confirmation and production-host protection.
-- Run & chunk history stored in a *control database* (`backup_runs`, `backup_chunks`).
+- Run & chunk history stored in a _control database_ (`backup_runs`, `backup_chunks`).
 - Structured logging, credential redaction, `--dry-run`.
 
-## 2. Requirements
+## Prerequisites
 
-- Node.js **20+** (developed on Node 22). Also runs under Bun.
-- Database clients on `PATH`: `pg_dump`, `psql` for PostgreSQL; `mysqldump`, `mysql`
-  for MariaDB/MySQL.
-- A Telegram bot + destination `chat_id`.
-- A control database (PostgreSQL or MariaDB) for the audit tables.
+| Requirement                                               | Check                                                                                                          |
+| --------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| Node.js **20+** (22 recommended)                          | `node --version`                                                                                               |
+| DB clients on `PATH`                                      | `pg_dump --version`, `psql --version` for Postgres; `mysqldump --version`, `mysql --version` for MariaDB/MySQL |
+| A Telegram bot + `chat_id`                                | See [Step 1–2](#step-1--create-a-telegram-bot)                                                                 |
+| A control database (Postgres or MariaDB) for audit tables | Any empty DB, e.g. `db2gram_state`. Skip with `DB2GRAM_SKIP_STATE=1` for dry runs                              |
 
-## 3. Installation
+Install clients on Debian/Ubuntu if missing:
 
 ```bash
+# PostgreSQL clients
+sudo apt install postgresql-client
+
+# MariaDB/MySQL clients
+sudo apt install mariadb-client
+```
+
+## Installation
+
+Pick **one** option. Options A and B are recommended for most users.
+
+### Option A — Global install (recommended for servers)
+
+```bash
+npm install -g db2gram
+db2gram --help
+db2gram backup --dry-run
+```
+
+Update later with:
+
+```bash
+npm update -g db2gram
+```
+
+### Option B — No install, via `npx`
+
+Good for one-off restores or trying without installing:
+
+```bash
+npx -y db2gram@latest --help
+npx -y db2gram@latest backup --dry-run
+npx -y db2gram@latest restore -m manifest.json --only-db main-app
+```
+
+> Use `npx -y db2gram@latest` (not bare `npx db2gram`) to always get the latest
+> published version without a stale cache prompt.
+
+### Option C — From source
+
+```bash
+git clone https://github.com/fiandev/db2gram.git
+cd db2gram
 npm install
-npm run build          # output to dist/
-npm test               # unit tests
-# or run directly without building:
-npm run dev -- backup --dry-run
+npm run build        # output to dist/
+node dist/cli.js --help
+
+# optional: expose `db2gram` on PATH from this checkout
+npm link
 ```
 
-Install as a global command (optional):
+### Option D — Single binary (no Node.js needed)
 
-```bash
-npm link               # provides `db2gram` on PATH
-```
-
-Or download the single binary from the GitHub Releases page
-(`db2gram-linux-x64`, `db2gram-darwin-arm64`, …). No runtime needed:
+Download `db2gram-linux-x64`, `db2gram-darwin-arm64`, … from the GitHub Releases page:
 
 ```bash
 chmod +x db2gram-linux-x64
 ./db2gram-linux-x64 --help
 ```
 
-Build it yourself with Bun:
+Or build it yourself with Bun:
 
 ```bash
-npm run build:bin      # output to dist/bin/db2gram
+npm run build:bin    # output to dist/bin/db2gram
 ```
 
-## 4. Telegram bot setup
+All examples below use `db2gram`. If you installed via `npx`, replace `db2gram`
+with `npx -y db2gram@latest`.
 
-1. Chat `@BotFather` → `/newbot` → save the **token**.
-2. Create the destination channel/group, add the bot as admin (or send a message to
-   the bot), then get the `chat_id` (e.g. via `@userinfobot` or
-   `https://api.telegram.org/bot<token>/getUpdates`).
-3. Set `TELEGRAM_BOT_TOKEN` and `TELEGRAM_CHAT_ID`.
+## 4. Quick start (10 minutes)
 
-## 5. Environment variables
+```bash
+# 1. Install
+npm install -g db2gram
 
-| Var | Required | Description |
-|---|---|---|
-| `SECRET_KEY` | Yes | 32-byte base64 key (`openssl rand -base64 32`). Used for config, archives, and manifest URLs. |
-| `ROOT_DATABASE_URL` | Yes* | Control DB for `backup_runs`/`backup_chunks`. *Not needed for `restore` and `--dry-run`; audit logging can be disabled with `DB2GRAM_SKIP_STATE=1`. |
-| `TELEGRAM_BOT_TOKEN` | Yes* | Bot token. *Not needed for `--dry-run`. |
-| `TELEGRAM_CHAT_ID` | Yes* | Destination chat/channel. *Not needed for `--dry-run`. |
-| `CONFIG_PATH` | No | Path to the encrypted config (default `./config.yaml.enc`). |
-| `CHUNK_SIZE_MB` | No | Chunk size (default `48`, Bot API max is 50). |
-| `TMP_DIR` | No | Temporary working directory (default `/tmp/db2gram`). |
-| `LOG_LEVEL` | No | `debug` \| `info` \| `warn` \| `error` \| `silent` (default `info`). |
-| `LOG_FORMAT` | No | `json` for structured logs. |
-| `DB2GRAM_SKIP_STATE` | No | `1` to skip audit logging. |
-| `TELEGRAM_API_BASE` | No | Bot API endpoint override (for tests). |
+# 2. Generate a secret key and save it (do this once, back it up offline)
+openssl rand -base64 32
+export SECRET_KEY="<output-from-above>"
 
-## 6. Configuration
+# 3. Set Telegram + control DB env vars
+export TELEGRAM_BOT_TOKEN="<token-from-BotFather>"
+export TELEGRAM_CHAT_ID="<chat-id>"
+export ROOT_DATABASE_URL="postgresql://user:pass@localhost:5432/db2gram_state"
 
-Copy `config.example.yaml`, fill in your databases, then encrypt:
+# 4. Describe your databases, then encrypt the file
+cp config.example.yaml config.yaml   # edit it with your DB URLs
+db2gram encrypt-config --in config.yaml --out config.yaml.enc
+rm config.yaml   # NEVER commit or deploy the plaintext
+
+# 5. Verify locally without uploading
+db2gram backup --dry-run
+
+# 6. Real backup (uploads encrypted chunks + manifest to Telegram)
+db2gram backup --out-manifest ./manifest.json
+```
+
+Next: [full step-by-step with Telegram setup](#5-step-by-step-setup).
+
+## Step-by-step setup
+
+### Step 0 — Decide where to run it
+
+You need one machine (VPS, NAS, CI runner) with Node.js 20+, DB clients, network
+access to your databases, and outbound HTTPS to `api.telegram.org`.
+
+### Step 1 — Create a Telegram bot
+
+1. Open Telegram and chat with `@BotFather`.
+2. Send `/newbot`, follow the prompts (pick a name + username ending in `bot`).
+3. Copy the **HTTP API token** it returns, e.g. `123456:ABC-DEF...`.
+4. This is your `TELEGRAM_BOT_TOKEN`. Treat it like a password.
+
+### Step 2 — Get the destination `chat_id`
+
+The bot uploads backups to one chat: your private DM, a group, or a channel.
+Pick one path:
+
+**Path A — Private chat (simplest for testing):**
+
+1. Search for your new bot by username, press Start (or send `/start`).
+2. Send any message to the bot.
+3. In a browser or terminal, open (replace `<token>`):
+
+   ```bash
+   curl "https://api.telegram.org/bot<token>/getUpdates"
+   ```
+
+4. Find `"chat":{"id": 123456789, ...}`. That number is your `TELEGRAM_CHAT_ID`.
+
+**Path B — Group:**
+
+1. Create a group, add the bot as a member.
+2. Send a test message in the group (e.g. `hello db2gram`).
+3. Call `getUpdates` as above. The group `chat.id` is usually negative
+   (e.g. `-1001234567890`).
+
+**Path C — Channel:**
+
+1. Create a channel, add the bot as **admin** with post permission.
+2. Post a test message in the channel.
+3. Call `getUpdates` as above and copy the channel `chat.id`.
+
+Alternative: forward any message to `@userinfobot` / `@getmyid_bot` to see IDs.
+If `getUpdates` returns `[]`, the bot received no new messages yet — send another
+message and retry.
+
+### Step 3 — Generate `SECRET_KEY`
+
+This single key encrypts `config.yaml.enc`, every backup archive, and every
+database URL inside the manifest. **Losing it means backups cannot be restored.**
+
+```bash
+openssl rand -base64 32
+```
+
+Copy the output and store it in a password manager + offline backup. It must
+decode to exactly 32 bytes (the default `openssl` output does).
+
+### Step 4 — Set environment variables
+
+Create a `.env` file (never commit it) or export the vars in your shell:
+
+```bash
+cp .env.example .env
+# then edit .env
+```
+
+Minimal `.env`:
+
+```dotenv
+SECRET_KEY=<output-from-step-3>
+ROOT_DATABASE_URL=postgresql://user:pass@localhost:5432/db2gram_state
+TELEGRAM_BOT_TOKEN=123456:ABC-DEF...
+TELEGRAM_CHAT_ID=-1001234567890
+```
+
+Notes:
+
+- `db2gram` auto-loads `.env` from the working directory.
+- On servers, prefer a root-owned env file (e.g. `/etc/db2gram.env`, `chmod 600`).
+- `ROOT_DATABASE_URL` can be `postgresql://…` or `mysql://…` / `mariadb://…`.
+- For `--dry-run` and `restore`, `ROOT_DATABASE_URL` is not required.
+  To skip audit logging entirely: `DB2GRAM_SKIP_STATE=1`.
+
+Verify they are loaded:
+
+```bash
+db2gram backup --dry-run   # fails fast with a clear error if a var is missing
+```
+
+### Step 5 — Write `config.yaml` and encrypt it
 
 ```bash
 cp config.example.yaml config.yaml
-# edit config.yaml
-export SECRET_KEY="$(openssl rand -base64 32)"   # store it somewhere safe!
-npx db2gram encrypt-config --in config.yaml --out config.yaml.enc
-rm config.yaml                                     # NEVER commit plaintext
 ```
 
-`config.yaml` format:
+Edit `config.yaml`:
 
 ```yaml
 databases:
-  - name: "main-app"          # unique, used for file naming
-    dialect: "postgres"       # postgres | mariadb
+  - name: "main-app" # unique, used for file naming
+    dialect: "postgres" # postgres | mariadb
     url: "postgresql://user:pass@host:5432/dbname"
   - name: "billing"
     dialect: "mariadb"
     url: "mariadb://user:pass@host:3306/billing"
 ```
 
-To edit later: `npx db2gram decrypt-config --in config.yaml.enc --out config.yaml`.
-
-## 7. Backup
+Then encrypt and delete the plaintext:
 
 ```bash
-npx db2gram backup                       # JSON manifest
-npx db2gram backup --format yaml         # YAML manifest
-npx db2gram backup --dry-run             # dump→zip→encrypt→split, no upload
-npx db2gram backup --out-manifest ./m.json
+export SECRET_KEY="<your-key>"   # required for this step
+db2gram encrypt-config --in config.yaml --out config.yaml.enc
+rm config.yaml                   # NEVER commit plaintext
+```
+
+To edit later:
+
+```bash
+db2gram decrypt-config --in config.yaml.enc --out config.yaml
+# edit config.yaml, then re-encrypt and delete it again
+db2gram encrypt-config --in config.yaml --out config.yaml.enc
+rm config.yaml
+```
+
+### Step 6 — Dry run (no upload)
+
+```bash
+db2gram backup --dry-run
+```
+
+This runs the full local pipeline (`dump → zip → encrypt → split`) and validates
+config, `SECRET_KEY`, and DB connectivity — but skips Telegram upload and audit
+logging. Fix any errors before continuing.
+
+### Step 7 — First real backup
+
+```bash
+db2gram backup --out-manifest ./manifest.json
+```
+
+What happens:
+
+1. Each database is dumped, zipped, encrypted, and split into ≤48 MB chunks.
+2. Chunks + a `manifest-*.json` are uploaded to your `TELEGRAM_CHAT_ID`.
+3. A local copy is saved to `./manifest.json` (because of `--out-manifest`).
+4. One failing database does not stop the others; exit code is non-zero if any fail.
+
+Check the Telegram chat: you should see chunk files + the manifest. Save the
+manifest — you need it (plus `SECRET_KEY` + `TELEGRAM_BOT_TOKEN`) to restore.
+
+### Step 8 — Schedule daily backups
+
+See [Section 11](#11-scheduler-daily-backup) for systemd timer and cron examples.
+
+### Step 9 — Test a restore now
+
+Do not wait for an emergency. Restore to an empty test database:
+
+```bash
+db2gram restore -m manifest.json --only-db main-app \
+  --target-url "postgresql://user:pass@localhost:5432/restore_test" --yes
+```
+
+If this succeeds, your setup is complete.
+
+## Environment variables
+
+| Var                  | Required | Description                                                                                                                                          |
+| -------------------- | -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `SECRET_KEY`         | Yes      | 32-byte base64 key (`openssl rand -base64 32`). Used for config, archives, and manifest URLs.                                                        |
+| `ROOT_DATABASE_URL`  | Yes\*    | Control DB for `backup_runs`/`backup_chunks`. \*Not needed for `restore` and `--dry-run`; audit logging can be disabled with `DB2GRAM_SKIP_STATE=1`. |
+| `TELEGRAM_BOT_TOKEN` | Yes\*    | Bot token from `@BotFather`. \*Not needed for `--dry-run`.                                                                                           |
+| `TELEGRAM_CHAT_ID`   | Yes\*    | Destination chat/channel ID. \*Not needed for `--dry-run`.                                                                                           |
+| `CONFIG_PATH`        | No       | Path to the encrypted config (default `./config.yaml.enc`). Override per-command with `--config`.                                                    |
+| `CHUNK_SIZE_MB`      | No       | Chunk size (default `48`, Bot API max is 50).                                                                                                        |
+| `TMP_DIR`            | No       | Temporary working directory (default `/tmp/db2gram`).                                                                                                |
+| `LOG_LEVEL`          | No       | `debug` \| `info` \| `warn` \| `error` \| `silent` (default `info`).                                                                                 |
+| `LOG_FORMAT`         | No       | `json` for structured logs.                                                                                                                          |
+| `DB2GRAM_SKIP_STATE` | No       | `1` to skip audit logging.                                                                                                                           |
+| `TELEGRAM_API_BASE`  | No       | Bot API endpoint override (for tests).                                                                                                               |
+
+## Configuration (`config.yaml.enc`)
+
+- Source file is plain YAML (`config.yaml`); deployed file is always the encrypted
+  `config.yaml.enc` (a `db2gram1` envelope, decryptable only with `SECRET_KEY`).
+- Each entry needs a unique `name`, a `dialect` (`postgres` | `mariadb`), and a `url`.
+- URL schemes: `postgresql://…`, `postgres://…` for Postgres;
+  `mariadb://…`, `mysql://…` for MariaDB/MySQL.
+- Default lookup path is `./config.yaml.enc`; override with `CONFIG_PATH` env var
+  or `--config <path>` on the `backup` command.
+
+## Backup
+
+```bash
+db2gram backup                       # JSON manifest to Telegram + stdout
+db2gram backup --format yaml         # YAML manifest instead
+db2gram backup --dry-run             # dump→zip→encrypt→split, no upload
+db2gram backup --out-manifest ./m.json
+db2gram backup --config ./other.enc  # use a non-default config path
 ```
 
 Per-database flow: `dump → zip → encrypt → split(≤48MB) → upload chunks → manifest`.
 One failing database does not stop the others; exit code is non-zero if any fail.
 Failed chunk uploads are retried, honoring `retry_after` (429).
 
-## 8. Restore
+With `npx`:
 
 ```bash
-npx db2gram restore -m manifest.json
-npx db2gram restore -m manifest.json --only-db main-app
-npx db2gram restore -m manifest.json --only-db main-app --target-url "postgresql://user:pass@localhost:5432/restore_test" --yes
+npx -y db2gram@latest backup --dry-run
+npx -y db2gram@latest backup --out-manifest ./m.json
+```
+
+## Restore
+
+```bash
+db2gram restore -m manifest.json
+db2gram restore -m manifest.json --only-db main-app
+db2gram restore -m manifest.json --only-db main-app --target-url "postgresql://user:pass@localhost:5432/restore_test" --yes
 ```
 
 Restore order: `download chunks → SHA-256 verify per part → join → decrypt →
@@ -136,25 +385,76 @@ unzip → SHA-256 verify → restore`. Without `--yes`, the tool asks for confir
 showing the DB name + target host. Hosts that look like production (`prod`,
 `production`, `live`) are rejected unless `--force` is passed.
 
-## 9. Emergency restore (≤10 steps)
+Requirements for restore: `SECRET_KEY` + `TELEGRAM_BOT_TOKEN`. `ROOT_DATABASE_URL`
+is not needed. The target database must already exist (create an empty one first).
+
+## Emergency restore
+
+You only need 3 things: `SECRET_KEY`, `TELEGRAM_BOT_TOKEN`, and the manifest file
+(from Telegram or your `--out-manifest` copy).
 
 1. Prepare a fresh machine with Node.js 20+ and the `psql`/`mysql` clients.
-2. `git clone` this repo, then `npm install && npm run build`.
-3. Set `SECRET_KEY` and `TELEGRAM_BOT_TOKEN` (`ROOT_DATABASE_URL` is not needed).
+2. Install the tool: `npm install -g db2gram` (or use `npx -y db2gram@latest`).
+3. Set `SECRET_KEY` and `TELEGRAM_BOT_TOKEN` in the environment.
 4. Download the latest `manifest-*.json` file from the Telegram chat to that machine.
-5. Prepare an empty target database.
+5. Prepare an empty target database (`CREATE DATABASE restore_test;`).
 6. Run:
-   `npx db2gram restore -m manifest-XXXX.json --only-db <name> --target-url "<target-url>" --yes`
+   `db2gram restore -m manifest-XXXX.json --only-db <name> --target-url "<target-url>" --yes`
 7. Confirm the log shows `restore complete` and all checksums match.
 8. Verify the data in the target database.
 
-## 10. Scheduler
+## Scheduler (daily backup)
 
-- systemd: install `systemd/db2gram.service` and `systemd/db2gram.timer`
-  (see the comments inside the files). `systemctl enable --now db2gram.timer`.
-- cron: see `crontab.example`.
+### systemd (recommended for VPS)
 
-## 11. Adding a new dialect
+1. Copy files and edit paths/env to match your install:
+
+   ```bash
+   sudo cp systemd/db2gram.service /etc/systemd/system/
+   sudo cp systemd/db2gram.timer /etc/systemd/system/
+   sudo mkdir -p /opt/db2gram /var/lib/db2gram
+   ```
+
+2. Create `/etc/db2gram.env` (root-owned, secrets only):
+
+   ```dotenv
+   SECRET_KEY=...
+   ROOT_DATABASE_URL=...
+   TELEGRAM_BOT_TOKEN=...
+   TELEGRAM_CHAT_ID=...
+   ```
+
+   ```bash
+   sudo chmod 600 /etc/db2gram.env
+   sudo chown root:db2gram /etc/db2gram.env
+   ```
+
+3. If you installed via `npm install -g`, point `ExecStart` at the global binary
+   (`which db2gram`) instead of `/usr/bin/node /opt/db2gram/dist/cli.js`.
+   Otherwise deploy the checkout to `/opt/db2gram` with `config.yaml.enc` beside it.
+
+4. Enable the daily timer:
+
+   ```bash
+   sudo systemctl daemon-reload
+   sudo systemctl enable --now db2gram.timer
+   systemctl list-timers | grep db2gram
+   ```
+
+   Default schedule is `02:00` daily (see `systemd/db2gram.timer`).
+
+### cron (alternative)
+
+See `crontab.example`. Example (runs daily at 02:00):
+
+```bash
+0 2 * * * cd /opt/db2gram && set -a && . /etc/db2gram.env && set +a && \
+  /usr/bin/node dist/cli.js backup --format json --out-manifest /var/lib/db2gram/manifest-latest.json >> /var/log/db2gram.log 2>&1
+```
+
+If installed globally, replace the `node dist/cli.js` part with `/usr/local/bin/db2gram`.
+
+## Adding a new dialect
 
 Just implement `Dialect` and register it — the core stays untouched:
 
@@ -165,8 +465,12 @@ import type { Dialect } from "./types.js";
 export class SqliteDialect implements Dialect {
   readonly name = "sqlite";
   readonly urlSchemes = ["sqlite://"];
-  async dump(url: string, output: string) { /* ... */ }
-  async restore(url: string, input: string) { /* ... */ }
+  async dump(url: string, output: string) {
+    /* ... */
+  }
+  async restore(url: string, input: string) {
+    /* ... */
+  }
 }
 ```
 
@@ -176,7 +480,7 @@ import { SqliteDialect } from "./sqlite.js";
 registerDialect(new SqliteDialect());
 ```
 
-## 12. Project structure
+## Project structure
 
 ```
 src/
@@ -195,7 +499,7 @@ tests/              # unit + integration (Docker)
 systemd/            # unit & timer
 ```
 
-## 13. Manifest schema
+## Manifest schema
 
 ```json
 {
@@ -210,7 +514,12 @@ systemd/            # unit & timer
       "dump_sha256": "…",
       "archive_sha256": "…",
       "chunks": [
-        { "part": 1, "file_id": "BQACAgUAAxkBAA…", "size_bytes": 50331648, "sha256": "…" }
+        {
+          "part": 1,
+          "file_id": "BQACAgUAAxkBAA…",
+          "size_bytes": 50331648,
+          "sha256": "…"
+        }
       ]
     }
   ]
@@ -219,7 +528,7 @@ systemd/            # unit & timer
 
 `file_id` is stored (not a public URL) because `getFile` URLs expire after ~1 hour.
 
-## 14. Control database schema
+## Control database schema
 
 ```sql
 backup_runs(id, started_at, finished_at, status, manifest_file_id)
@@ -228,7 +537,7 @@ backup_chunks(id, run_id, db_name, part_no, file_id, size_bytes, sha256)
 
 Tables are created automatically on the first `backup` run.
 
-## 15. Security
+## Security
 
 - `SECRET_KEY` comes from the environment only; it is never written to logs/manifests.
 - Archives are encrypted **before** upload.
@@ -238,13 +547,7 @@ Tables are created automatically on the first `backup` run.
 - Temp files use `600` permissions and are always removed (try/finally).
 - A `file_id` can only be downloaded by a bot with the same token — keep the token secret.
 
-## 16. Telegram limits
-
-- Bot upload max is **50 MB** → default chunk is 48 MB.
-- Rate limits: `retry_after` is honored, exponential backoff for transient errors.
-- `getFile` expires after ~1 hour → the manifest stores `file_id`.
-
-## 17. Testing
+## Testing
 
 ```bash
 npm run test:unit          # unit tests (no DB needed)
@@ -254,7 +557,18 @@ npm run test:integration   # requires Docker: PostgreSQL 18 + MariaDB 11
 `scripts/test-integration.sh` starts throwaway containers, runs real dump/restore
 round-trip tests, then cleans up.
 
-## 18. Non-goals (v1)
+## Troubleshooting
+
+| Symptom                                                       | Likely cause / fix                                                                                                                    |
+| ------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| `SECRET_KEY must decode to 32 bytes`                          | Key has extra newline/space or is not `openssl rand -base64 32` output. Regenerate and `export` without quotes issues.                |
+| `required environment variable TELEGRAM_BOT_TOKEN is not set` | `.env` not in working dir or vars not exported. `db2gram` auto-loads `./.env`; for systemd/cron source `/etc/db2gram.env` explicitly. |
+| `getUpdates` returns `{"result":[]}`                          | Bot received no new messages. Send `/start` or a test message, then retry.                                                            |
+| `chat not found` on backup                                    | Wrong `TELEGRAM_CHAT_ID`, or bot not added / not admin in that group/channel. Re-add and resend a message.                            |
+| `pg_dump: command not found`                                  | DB client missing on `PATH`. Install `postgresql-client` / `mariadb-client`.                                                          |
+| Restore asks for confirmation in CI                           | Pass `--yes` (and `--force` only if you really target a prod-like host).                                                              |
+
+## TODO
 
 - Point-in-time recovery / incremental backup (full dumps only).
 - Telegram end-to-end encryption.

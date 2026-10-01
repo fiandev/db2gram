@@ -13,7 +13,7 @@ const VERSION = "1.0.0";
 function main(): void {
   const program = new Command();
   program
-    .name("tgdb")
+    .name("db2gram")
     .description("Automated multi-database backup to Telegram (dump → zip → encrypt → chunk → upload).")
     .version(VERSION);
 

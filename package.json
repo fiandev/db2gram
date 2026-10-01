@@ -1,12 +1,12 @@
 {
-  "name": "tgdb-backup",
+  "name": "db2gram",
   "version": "1.0.0",
   "description": "Automated multi-database backup to Telegram (dump -> zip -> encrypt -> chunk -> upload).",
   "type": "module",
   "license": "MIT",
   "private": true,
   "bin": {
-    "tgdb": "./dist/cli.js"
+    "db2gram": "./dist/cli.js"
   },
   "files": [
     "dist"

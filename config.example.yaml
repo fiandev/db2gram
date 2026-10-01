@@ -1,0 +1,10 @@
+# Example tgdb-backup config. Encrypt this file before use:
+#   tgdb encrypt-config --in config.example.yaml --out config.yaml.enc
+# Then delete the plaintext. Only config.yaml.enc should be deployed.
+databases:
+  - name: "main-app"
+    dialect: "postgres" # postgres | mariadb
+    url: "postgresql://user:pass@host:5432/dbname"
+  - name: "billing"
+    dialect: "mariadb"
+    url: "mariadb://user:pass@host:3306/billing"

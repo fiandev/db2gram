@@ -1,0 +1,5 @@
+# Alternative to the systemd timer. Credentials are sourced from an env file
+# rather than written inline so they never appear in the crontab.
+#
+#   0 2 * * * cd /opt/tgdb-backup && set -a && . /etc/tgdb-backup.env && set +a && \
+#     /usr/bin/node dist/cli.js backup --format json --out-manifest /var/lib/tgdb-backup/manifest-latest.json >> /var/log/tgdb-backup.log 2>&1

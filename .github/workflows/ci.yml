@@ -14,7 +14,7 @@ permissions:
 
 jobs:
   test:
-    name: typecheck / build / unit tests
+    name: typecheck / build / unit tests / binary compile
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -24,10 +24,18 @@ jobs:
           node-version: 22
           cache: npm
 
+      - uses: oven-sh/setup-bun@v2
+
       - run: npm ci
       - run: npm run typecheck
       - run: npm run build
       - run: npm run test:unit
+
+      - name: Verify single-binary compiles (all targets)
+        run: |
+          for target in bun-linux-x64 bun-linux-arm64 bun-darwin-x64 bun-darwin-arm64 bun-windows-x64; do
+            bun build --compile --external @aws-sdk/client-s3 --target="$target" --outfile "$RUNNER_TEMP/db2gram-check-$target" src/cli.ts
+          done
 
   publish:
     name: publish to npm

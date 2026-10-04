@@ -6,10 +6,14 @@ Telegram Bot API. At the end of a run, the tool sends a **manifest** listing the
 databases (connection URL encrypted) and the chunks (`file_id`). Restoring takes a
 single command from the manifest.
 
+<img src="./.github/assets/preview.png" alt="preview image">
+
+---
+
 > Telegram cloud storage is **not** end-to-end encrypted, so archives are encrypted
 > before leaving the server. Without `SECRET_KEY`, backup contents cannot be read.
 
-Flow per database: `dump → zip → encrypt → split → upload chunks → manifest`
+> Flow per database: `dump → zip → encrypt → split → upload chunks → manifest`
 
 ---
 
@@ -18,7 +22,7 @@ Flow per database: `dump → zip → encrypt → split → upload chunks → man
 1. [Features](#features)
 2. [Prerequisites](#prerequisites)
 3. [Installation](#installation)
-4. [Quick start (10 minutes)](#quick-start-10-minutes)
+4. [Quick start](#quick-start)
 5. [Wizard (interactive setup)](#wizard-interactive-setup)
 6. [Step-by-step setup](#step-by-step-setup)
 7. [Environment variables](#environment-variables)
@@ -131,7 +135,7 @@ npm run build:bin    # output to dist/bin/db2gram
 All examples below use `db2gram`. If you installed via `npx`, replace `db2gram`
 with `npx -y db2gram@latest`.
 
-## 4. Quick start (10 minutes)
+## Quick start
 
 ```bash
 # 1. Install
@@ -158,7 +162,7 @@ db2gram backup --dry-run
 db2gram backup --out-manifest ./manifest.json
 ```
 
-Next: [full step-by-step with Telegram setup](#5-step-by-step-setup).
+Next: [full step-by-step with Telegram setup](#step-by-step-setup).
 
 ## Wizard (interactive setup)
 

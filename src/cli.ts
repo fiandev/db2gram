@@ -8,6 +8,7 @@ import { loadSecretKey } from "./crypto.js";
 import { Db2gramError } from "./errors.js";
 import { createLogger } from "./logger.js";
 import { ensureBackupWizard, ensureConfigCryptoWizard, ensureRestoreWizard } from "./wizard.js";
+import LOGO from "./constants/logo.js";
 
 const VERSION = "1.1.0";
 
@@ -133,6 +134,7 @@ function main(): void {
     );
 
   // Config path is resolved from env; surface it for the help text.
+  program.addHelpText("beforeAll", LOGO);
   program.addHelpText("after", `\nConfig path: ${resolveConfigPath()} (override with CONFIG_PATH or --config)`);
 
   program.parseAsync(process.argv).catch(handleFatal);

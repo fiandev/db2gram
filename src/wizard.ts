@@ -1,6 +1,7 @@
 import { readFile } from "node:fs/promises";
 import * as p from "@clack/prompts";
 import { DEFAULT_CONFIG_PATH } from "./config.js";
+import LOGO from "./constants/logo.js";
 import { parseSecretKey } from "./crypto.js";
 import { optionalEnv } from "./env.js";
 import { ConfigError } from "./errors.js";
@@ -108,6 +109,10 @@ function abortIfCancel(value: unknown, message = "Operation cancelled"): never |
   }
 }
 
+function showLogo(): void {
+  console.log(LOGO);
+}
+
 async function askPassword(message: string, validate: (v: string | undefined) => string | undefined): Promise<string> {
   const answer = await p.password({ message, mask: "•", validate });
   abortIfCancel(answer);
@@ -158,6 +163,7 @@ export async function ensureBackupWizard(options: BackupWizardOptions = {}): Pro
     return { configPath: explicitConfig ?? optionalEnv("CONFIG_PATH") ?? DEFAULT_CONFIG_PATH };
   }
 
+  showLogo();
   p.intro("db2gram backup setup");
 
   if (needSecret) {
@@ -248,6 +254,7 @@ export async function ensureRestoreWizard(options: RestoreWizardOptions = {}): P
     return { manifestPath: manifestPath as string, onlyDb, targetUrl, yes };
   }
 
+  showLogo();
   p.intro("db2gram restore setup");
 
   if (needSecret) {
@@ -309,6 +316,7 @@ export async function ensureConfigCryptoWizard(options: ConfigCryptoWizardOption
     return { inPath, outPath };
   }
 
+  showLogo();
   p.intro("db2gram config crypto setup");
 
   if (needSecret) {

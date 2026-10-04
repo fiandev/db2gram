@@ -1,6 +1,6 @@
 {
   "name": "db2gram",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Automated multi-database backup to Telegram (dump -> zip -> encrypt -> chunk -> upload).",
   "type": "module",
   "license": "MIT",
@@ -29,6 +29,7 @@
     "test:integration": "bash scripts/test-integration.sh"
   },
   "dependencies": {
+    "@clack/prompts": "^1.8.1",
     "archiver": "^7.0.1",
     "commander": "^12.1.0",
     "dotenv": "^16.6.1",

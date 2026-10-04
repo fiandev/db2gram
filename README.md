@@ -19,20 +19,21 @@ Flow per database: `dump → zip → encrypt → split → upload chunks → man
 2. [Prerequisites](#prerequisites)
 3. [Installation](#installation)
 4. [Quick start (10 minutes)](#quick-start-10-minutes)
-5. [Step-by-step setup](#step-by-step-setup)
-6. [Environment variables](#environment-variables)
-7. [Configuration](#configuration-configyamlenc)
-8. [Backup](#backup)
-9. [Restore](#restore)
-10. [Emergency restore](#emergency-restore)
-11. [Scheduler (daily backup)](#scheduler-daily-backup)
-12. [Adding a new dialect](#adding-a-new-dialect)
-13. [Project structure](#project-structure)
-14. [Manifest schema](#manifest-schema)
-15. [Control database schema](#control-database-schema)
-16. [Security](#security)
-17. [Testing](#testing)
-18. [Todo](#todo)
+5. [Wizard (interactive setup)](#wizard-interactive-setup)
+6. [Step-by-step setup](#step-by-step-setup)
+7. [Environment variables](#environment-variables)
+8. [Configuration](#configuration-configyamlenc)
+9. [Backup](#backup)
+10. [Restore](#restore)
+11. [Emergency restore](#emergency-restore)
+12. [Scheduler (daily backup)](#scheduler-daily-backup)
+13. [Adding a new dialect](#adding-a-new-dialect)
+14. [Project structure](#project-structure)
+15. [Manifest schema](#manifest-schema)
+16. [Control database schema](#control-database-schema)
+17. [Security](#security)
+18. [Testing](#testing)
+19. [Todo](#todo)
 
 ---
 
@@ -41,6 +42,8 @@ Flow per database: `dump → zip → encrypt → split → upload chunks → man
 - Scheduled daily backup (systemd timer / cron) for many databases at once.
 - **Pluggable** dialects: v1 supports **PostgreSQL** and **MariaDB/MySQL**.
 - Configuration & credentials encrypted at rest (`config.yaml.enc`).
+- **Interactive wizard** (`--wizard`) for backup and restore: guides you through
+  every required value so you don't have to memorize env var names.
 - Archive encryption with AES-256-GCM, envelope format `db2gram1.<iv>.<ct>.<tag>`.
 - Automatic chunking + SHA-256 verification at every transition.
 - Single-command restore with interactive confirmation and production-host protection.
@@ -157,6 +160,44 @@ db2gram backup --out-manifest ./manifest.json
 
 Next: [full step-by-step with Telegram setup](#5-step-by-step-setup).
 
+## Wizard (interactive setup)
+
+The easiest way to run `db2gram` is the built-in wizard (powered by
+`@clack/prompts`). It runs right before `backup` or `restore` starts.
+
+```bash
+# Full guided setup: asks for SECRET_KEY, Telegram credentials,
+# control DB, config path, manifest, and restore targets.
+db2gram backup --wizard
+db2gram restore --wizard
+
+# Dry run with guidance (only asks for SECRET_KEY + config path).
+db2gram backup --dry-run --wizard
+```
+
+How `--wizard` behaves:
+
+| Mode | Behavior |
+| ---- | -------- |
+| `backup --wizard` / `restore --wizard` | **Ignores all existing env vars** and asks for everything via the wizard. |
+| `backup` / `restore` (no flag) | **Reuses every env var you already set** and only prompts for the missing ones. If everything is set, no wizard appears. |
+
+What each wizard asks:
+
+- **Backup:** `SECRET_KEY`, config path (`CONFIG_PATH`), `TELEGRAM_BOT_TOKEN`,
+  `TELEGRAM_CHAT_ID`, `ROOT_DATABASE_URL` (or opt out with `DB2GRAM_SKIP_STATE=1`).
+  Telegram + control DB questions are skipped for `--dry-run`.
+- **Restore:** `SECRET_KEY`, `TELEGRAM_BOT_TOKEN`, manifest path, which database to
+  restore (picked from the manifest), optional custom `--target-url`, and whether
+  to skip confirmation (`--yes`).
+
+Notes:
+
+- The wizard needs an interactive terminal. In CI / non-TTY it exits with a clear
+  error — set env vars explicitly instead (see below).
+- Press `Ctrl+C` at any prompt to cancel safely.
+- Answers are written to `process.env` for that run only; nothing is saved to disk.
+
 ## Step-by-step setup
 
 ### Step 0 — Decide where to run it
@@ -248,6 +289,11 @@ Verify they are loaded:
 ```bash
 db2gram backup --dry-run   # fails fast with a clear error if a var is missing
 ```
+
+> Tip: you don't have to set everything upfront. Running `db2gram backup` or
+> `db2gram restore` without `--wizard` reuses whatever env vars exist and only
+> prompts for the missing ones. Pass `--wizard` to start from scratch and be
+> guided through every value.
 
 ### Step 5 — Write `config.yaml` and encrypt it
 
@@ -355,11 +401,15 @@ If this succeeds, your setup is complete.
 
 ```bash
 db2gram backup                       # JSON manifest to Telegram + stdout
+db2gram backup --wizard              # guided setup, ignores existing env vars
 db2gram backup --format yaml         # YAML manifest instead
 db2gram backup --dry-run             # dump→zip→encrypt→split, no upload
 db2gram backup --out-manifest ./m.json
 db2gram backup --config ./other.enc  # use a non-default config path
 ```
+
+Without `--wizard`, missing env vars are prompted one by one; with `--wizard`,
+all values come from the wizard. `--dry-run` only needs `SECRET_KEY` + config.
 
 Per-database flow: `dump → zip → encrypt → split(≤48MB) → upload chunks → manifest`.
 One failing database does not stop the others; exit code is non-zero if any fail.
@@ -376,6 +426,7 @@ npx -y db2gram@latest backup --out-manifest ./m.json
 
 ```bash
 db2gram restore -m manifest.json
+db2gram restore --wizard             # asks for manifest, DB choice, target, --yes
 db2gram restore -m manifest.json --only-db main-app
 db2gram restore -m manifest.json --only-db main-app --target-url "postgresql://user:pass@localhost:5432/restore_test" --yes
 ```
@@ -485,6 +536,7 @@ registerDialect(new SqliteDialect());
 ```
 src/
   cli.ts            # commander: backup, restore, encrypt-config, decrypt-config
+  wizard.ts         # @clack/prompts wizard: fills missing env / full --wizard setup
   crypto.ts         # AES-256-GCM (string/buffer/stream) + db2gram1 envelope
   config.ts         # zod schema, load/encrypt/decrypt config
   env.ts            # environment reading & validation

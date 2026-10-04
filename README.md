@@ -171,6 +171,10 @@ The easiest way to run `db2gram` is the built-in wizard (powered by
 db2gram backup --wizard
 db2gram restore --wizard
 
+# Guided config encryption / decryption (asks for SECRET_KEY + in/out paths).
+db2gram encrypt-config --wizard
+db2gram decrypt-config --wizard
+
 # Dry run with guidance (only asks for SECRET_KEY + config path).
 db2gram backup --dry-run --wizard
 ```
@@ -190,6 +194,9 @@ What each wizard asks:
 - **Restore:** `SECRET_KEY`, `TELEGRAM_BOT_TOKEN`, manifest path, which database to
   restore (picked from the manifest), optional custom `--target-url`, and whether
   to skip confirmation (`--yes`).
+- **Encrypt/decrypt config:** `SECRET_KEY` plus input/output paths
+  (`--in` / `--out`). Without `--wizard` only a missing `SECRET_KEY` is prompted,
+  since the paths already have CLI defaults.
 
 Notes:
 

@@ -7,7 +7,7 @@ import { decryptConfigFile, encryptConfigFile, resolveConfigPath } from "./confi
 import { loadSecretKey } from "./crypto.js";
 import { Db2gramError } from "./errors.js";
 import { createLogger } from "./logger.js";
-import { ensureBackupWizard, ensureRestoreWizard } from "./wizard.js";
+import { ensureBackupWizard, ensureConfigCryptoWizard, ensureRestoreWizard } from "./wizard.js";
 
 const VERSION = "1.1.0";
 
@@ -23,11 +23,19 @@ function main(): void {
     .description("Encrypt a plaintext config.yaml into a db2gram1 envelope.")
     .option("--in <path>", "input config path", "./config.yaml")
     .option("--out <path>", "output encrypted path", "./config.yaml.enc")
-    .action(async (opts: { in: string; out: string }) => {
+    .option("--wizard", "ignore existing env vars and set everything up via an interactive wizard")
+    .action(async (opts: { in: string; out: string; wizard?: boolean }) => {
       const logger = createLogger();
+      const guided = await ensureConfigCryptoWizard({
+        inPath: opts.in,
+        outPath: opts.out,
+        wizard: opts.wizard,
+        defaultIn: "./config.yaml",
+        defaultOut: "./config.yaml.enc",
+      });
       const key = loadSecretKey();
-      await encryptConfigFile(opts.in, opts.out, key);
-      logger.info("config encrypted", { in: opts.in, out: opts.out });
+      await encryptConfigFile(guided.inPath, guided.outPath, key);
+      logger.info("config encrypted", { in: guided.inPath, out: guided.outPath });
     });
 
   program
@@ -35,11 +43,19 @@ function main(): void {
     .description("Decrypt a db2gram1 config envelope back to plaintext YAML.")
     .option("--in <path>", "input encrypted path", "./config.yaml.enc")
     .option("--out <path>", "output plaintext path", "./config.yaml")
-    .action(async (opts: { in: string; out: string }) => {
+    .option("--wizard", "ignore existing env vars and set everything up via an interactive wizard")
+    .action(async (opts: { in: string; out: string; wizard?: boolean }) => {
       const logger = createLogger();
+      const guided = await ensureConfigCryptoWizard({
+        inPath: opts.in,
+        outPath: opts.out,
+        wizard: opts.wizard,
+        defaultIn: "./config.yaml.enc",
+        defaultOut: "./config.yaml",
+      });
       const key = loadSecretKey();
-      await decryptConfigFile(opts.in, opts.out, key);
-      logger.info("config decrypted", { in: opts.in, out: opts.out });
+      await decryptConfigFile(guided.inPath, guided.outPath, key);
+      logger.info("config decrypted", { in: guided.inPath, out: guided.outPath });
     });
 
   program

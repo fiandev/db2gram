@@ -27,6 +27,19 @@ export interface RestoreWizardResult {
   yes?: boolean;
 }
 
+export interface ConfigCryptoWizardOptions {
+  inPath?: string;
+  outPath?: string;
+  wizard?: boolean;
+  defaultIn: string;
+  defaultOut: string;
+}
+
+export interface ConfigCryptoWizardResult {
+  inPath: string;
+  outPath: string;
+}
+
 type EnvSnapshot = Record<string, string | undefined>;
 
 function snapshotEnv(): EnvSnapshot {
@@ -269,6 +282,52 @@ export async function ensureRestoreWizard(options: RestoreWizardOptions = {}): P
 
   p.outro("Restore setup complete");
   return { manifestPath: manifestPath as string, onlyDb, targetUrl, yes };
+}
+
+/**
+ * Fill `process.env` + in/out paths for `encrypt-config` / `decrypt-config`.
+ *
+ * - `--wizard`: ignore the existing SECRET_KEY and ask for secret + paths.
+ * - default: keep existing env vars and only ask for a missing SECRET_KEY
+ *   (in/out paths already have CLI defaults, so no prompt is needed).
+ */
+export async function ensureConfigCryptoWizard(options: ConfigCryptoWizardOptions): Promise<ConfigCryptoWizardResult> {
+  const forceAll = options.wizard === true;
+  let inPath = options.inPath?.trim() ? options.inPath.trim() : options.defaultIn;
+  let outPath = options.outPath?.trim() ? options.outPath.trim() : options.defaultOut;
+
+  if (!isInteractive()) {
+    if (forceAll) {
+      throw new ConfigError("--wizard requires an interactive terminal (stdin is not a TTY)");
+    }
+    return { inPath, outPath };
+  }
+
+  const needSecret = forceAll || !optionalEnv("SECRET_KEY");
+
+  if (!needSecret && !forceAll) {
+    return { inPath, outPath };
+  }
+
+  p.intro("db2gram config crypto setup");
+
+  if (needSecret) {
+    process.env.SECRET_KEY = await askPassword(
+      "SECRET_KEY (32-byte base64, e.g. from `openssl rand -base64 32`)",
+      validateSecretKeyInput,
+    );
+  }
+  if (forceAll) {
+    inPath = await askText("Input config path", options.defaultIn, inPath, (v) =>
+      validateRequiredInput("input path", v),
+    );
+    outPath = await askText("Output config path", options.defaultOut, outPath, (v) =>
+      validateRequiredInput("output path", v),
+    );
+  }
+
+  p.outro("Config crypto setup complete");
+  return { inPath, outPath };
 }
 
 async function promptRestoreTargets(

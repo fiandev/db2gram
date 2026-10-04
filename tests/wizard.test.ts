@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   applyEnvValues,
   ensureBackupWizard,
+  ensureConfigCryptoWizard,
   ensureRestoreWizard,
   getMissingBackupVars,
   getMissingRestoreVars,
@@ -77,6 +78,30 @@ describe("ensure*Wizard in non-interactive mode", () => {
   it("passes explicit restore options through untouched", async () => {
     const result = await ensureRestoreWizard({ manifestPath: "./m.json", onlyDb: "db1", yes: true });
     expect(result).toEqual({ manifestPath: "./m.json", onlyDb: "db1", targetUrl: undefined, yes: true });
+  });
+
+  it("passes config crypto paths through without prompting", async () => {
+    const encrypted = await ensureConfigCryptoWizard({
+      inPath: "./config.yaml",
+      outPath: "./config.yaml.enc",
+      defaultIn: "./config.yaml",
+      defaultOut: "./config.yaml.enc",
+    });
+    expect(encrypted).toEqual({ inPath: "./config.yaml", outPath: "./config.yaml.enc" });
+  });
+
+  it("falls back to defaults for empty config crypto paths", async () => {
+    const decrypted = await ensureConfigCryptoWizard({
+      defaultIn: "./config.yaml.enc",
+      defaultOut: "./config.yaml",
+    });
+    expect(decrypted).toEqual({ inPath: "./config.yaml.enc", outPath: "./config.yaml" });
+  });
+
+  it("rejects --wizard without an interactive terminal", async () => {
+    await expect(
+      ensureConfigCryptoWizard({ wizard: true, defaultIn: "./a", defaultOut: "./b" }),
+    ).rejects.toThrow(/interactive terminal/);
   });
 });
 

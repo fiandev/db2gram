@@ -1,12 +1,16 @@
 {
   "name": "db2gram",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Automated multi-database backup to Telegram (dump -> zip -> encrypt -> chunk -> upload).",
   "type": "module",
   "license": "MIT",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/fiandev/db2gram.git"
+  },
+  "author": {
+    "name": "fiandev",
+    "url": "https://github.com/fiandev"
   },
   "bin": {
     "db2gram": "./dist/cli.js"
@@ -29,7 +33,9 @@
     "test:integration": "bash scripts/test-integration.sh"
   },
   "dependencies": {
+    "@clack/prompts": "^1.8.1",
     "archiver": "^7.0.1",
+    "chalk": "^6.0.1",
     "commander": "^12.1.0",
     "dotenv": "^16.6.1",
     "mysql2": "^3.11.5",
@@ -45,6 +51,6 @@
     "@types/unzipper": "^0.10.10",
     "tsx": "^4.19.2",
     "typescript": "^5.7.2",
-    "vitest": "^2.1.8"
+    "vitest": "^5.0.3"
   }
 }
